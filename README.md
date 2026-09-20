@@ -21,6 +21,19 @@ Both architectures were implemented in PyTorch and trained over 80 epochs using 
 
 ---
 
+## 📊 Performance & Visualizations
+
+*(Upload your generated result images into the `fig/` folder and link them here)*
+
+| Architecture | 15-min MAE | 30-min MAE | 60-min MAE | Temporal Layer Mechanism |
+| :--- | :---: | :---: | :---: | :--- |
+| **ASTGCN (Baseline)** | Standard | Baseline | Baseline | Dilated Temporal Convolutions (TCN) |
+| **ASTGCN-GRU (Ours)** | Comparative | Higher | **+8.2% Decay** | Multi-Layer Gated Recurrent Unit (GRU) |
+
+![Architecture & Findings](fig/ASTGCN%20architecture.png)
+
+---
+
 ## 🛠️ Tools & Frameworks
 
 * **Language**: Python 3.x
@@ -32,43 +45,60 @@ Both architectures were implemented in PyTorch and trained over 80 epochs using 
 ---
 
 ## 📁 Repository Structure
-├── ASTGCN_vs_GRU_Benchmark.ipynb   # Complete PyTorch training pipeline & loss curve visualization
-├── README.md                       # Project documentation & summary of findings
 
+```text
+astgcn-gru-traffic-benchmark/
+├── configurations/          # Network configuration parameters (.conf)
+│   ├── METR_LA_astgcn.conf
+│   ├── PEMS04_astgcn.conf
+│   └── PEMS08_astgcn.conf
+├── fig/                     # Architecture diagrams and evaluation plots
+│   └── ASTGCN architecture.png
+├── lib/                     # Data loaders and metric computation utilities
+│   ├── metrics.py
+│   └── utils.py
+├── logs/                    # Training output logs
+│   ├── NewModelRNN_Training.txt
+│   └── OldModelTCN_Training.txt
+├── model/                   # PyTorch neural network class definitions
+│   ├── ASTGCN_r.py          # Baseline ASTGCN model
+│   ├── ASTGCN_r_new.py      # Custom GRU-augmented ASTGCN variant
+│   └── MSTGCN_r.py          # Multi-component Spatial-Temporal Graph Conv
+├── prepareData.py           # Dataset preprocessing and matrix construction
+├── train_ASTGCN_r.py        # Baseline training pipeline
+├── train_ASTGCN_r_new.py    # GRU variant training pipeline
+├── AAAI-GuoS.2690.pdf       # Reference paper (Guo et al., 2019)
+└── README.md                # Project documentation
 
----
 
 ## 🚀 Methodology Summary
+Preprocessing: Normalized traffic flow/speed arrays across 307 nodes; constructed spatial adjacency matrices derived from node distance topologies.
 
-1. **Preprocessing**: Normalized traffic flow/speed arrays across 307 nodes; constructed spatial adjacency matrices derived from node distance topologies.
-2. **Model Training**: 
-   * **Optimizer**: Adam
-   * **Epochs**: 80
-   * **Metrics**: Mean Absolute Error (MAE), Root Mean Squared Error (RMSE)
-3. **Ablation Experiment**: Replaced temporal convolution blocks with multi-layer GRU units while keeping spatial attention components identical to isolate temporal layer impact.
+Model Training:
 
----
+Optimizer: Adam
+
+Epochs: 80
+
+Metrics: Mean Absolute Error (MAE), Root Mean Squared Error (RMSE)
+
+Ablation Experiment: Replaced temporal convolution blocks with multi-layer GRU units while keeping spatial attention components identical to isolate temporal layer impact.
 
 ## 📜 Attribution & Acknowledgments
+This codebase is adapted from the official PyTorch implementation of ASTGCN:
 
-This codebase is adapted from the official PyTorch implementation of **ASTGCN**:
-* Paper: *Attention Based Spatial-Temporal Graph Convolutional Networks for Traffic Flow Forecasting* (Guo et al., AAAI 2019).
-* Original Repository: [Guoziwei/ASTGCN-2019-pytorch](https://github.com/Guoziwei/ASTGCN-2019-pytorch)
+Paper: Attention Based Spatial-Temporal Graph Convolutional Networks for Traffic Flow Forecasting (Guo et al., AAAI 2019).
 
-### Modifications Made in This Repository:
-* Added custom `ASTGCN_r_new.py` implementing GRU/RNN temporal layers in place of standard dilated temporal convolutions.
-* Created benchmarking scripts (`train_ASTGCN_r_new.py`) to evaluate horizon decay and gradient stability.
+Original Repository: Guoziwei/ASTGCN-2019-pytorch
 
----
+Modifications Made in This Repository:
+Developed custom ASTGCN_r_new.py incorporating GRU/RNN temporal layers in place of standard dilated temporal convolutions.
 
-## 👤 Author
+Built benchmarking scripts (train_ASTGCN_r_new.py) to evaluate horizon decay and gradient stability.
 
-**Andrew Wang**  
-*Research Conducted during High School Summer Internship*  
-Department of Systems Engineering | City University of Hong Kong
+##👤 Author
+Andrew Wang
 
-## 👤 Author
+Research Conducted during High School Summer Internship
 
-**Andrew [Your Last Name]**  
-*Research Conducted during High School Summer Internship*  
 Department of Systems Engineering | City University of Hong Kong
