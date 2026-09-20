@@ -23,8 +23,7 @@ Both architectures were implemented in PyTorch and trained over 80 epochs using 
 
 ## 📊 Performance & Visualizations
 
-*(Upload your generated result images into the `fig/` folder and link them here)*
-
+*See results/ for results
 | Architecture | 15-min MAE | 30-min MAE | 60-min MAE | Temporal Layer Mechanism |
 | :--- | :---: | :---: | :---: | :--- |
 | **ASTGCN (Baseline)** | Standard | Baseline | Baseline | Dilated Temporal Convolutions (TCN) |
