@@ -1,0 +1,188 @@
+import re
+from pathlib import Path
+import matplotlib.pyplot as plt
+
+
+def parse_training_log(log_path: Path) -> dict:
+    text = log_path.read_text(encoding="utf-8", errors="ignore")
+    train_steps = []
+    train_losses = []
+    val_losses = []
+    all_mae = []
+    all_rmse = []
+    all_mape = []
+    timestep_data = {}  # Temporary storage for timestep prediction loss
+    timestep_mae = []
+
+    for line in text.splitlines():
+        line = line.strip()
+
+        step_match = re.search(r"global step:\s*(\d+),\s*training loss:\s*([0-9.]+)", line)
+        if step_match:
+            train_steps.append(int(step_match.group(1)))
+            train_losses.append(float(step_match.group(2)))
+            continue
+
+        val_match = re.search(r"validation batch 101 / 107, loss:\s*([0-9.]+)", line)
+        if val_match:
+            val_losses.append(float(val_match.group(1)))
+            continue
+
+        mae_match = re.search(r"all MAE:\s*([0-9.]+)", line)
+        if mae_match:
+            all_mae.append(float(mae_match.group(1)))
+            continue
+
+        rmse_match = re.search(r"all RMSE:\s*([0-9.]+)", line)
+        if rmse_match:
+            all_rmse.append(float(rmse_match.group(1)))
+            continue
+
+        mape_match = re.search(r"all MAPE:\s*([0-9.]+)", line)
+        if mape_match:
+            all_mape.append(float(mape_match.group(1)))
+            continue
+
+        # Regex to capture prediction loss per timestep (e.g., "timestep 1 loss: 0.123" or "timestep 1: 0.123")
+        # Adjust the keywords in this regex if your log uses different phrasing!
+        ts_match = re.search(r"timestep\s*(\d+)\s*(?:loss)?:\s*([0-9.]+)", line, re.IGNORECASE)
+        if ts_match:
+            timestep_data[int(ts_match.group(1))] = float(ts_match.group(2))
+            continue
+
+        # Capture a printed Python-like list of numbers at the end of logs
+        # that contains per-timestep metrics (MAE, RMSE, MAPE) repeated.
+        bracket_list_match = re.search(r"\[.*\]", line)
+        if bracket_list_match:
+            nums = re.findall(r"[-+]?\d*\.\d+(?:[eE][-+]?\d+)?|[-+]?\d+(?:[eE][-+]?\d+)?", bracket_list_match.group(0))
+            nums = [float(n) for n in nums]
+            # If the list contains at least 36 numbers (12 timesteps * 3 metrics),
+            # extract the MAE values (every 3rd starting at index 0).
+            if len(nums) >= 36:
+                timestep_mae = [nums[i] for i in range(0, 36, 3)]
+            continue
+
+    # Create a list of exactly 12 timesteps (defaulting to 0.0 if not found)
+    timestep_losses = [timestep_data.get(i, 0.0) for i in range(1, 13)]
+
+    return {
+        "train_steps": train_steps,
+        "train_losses": train_losses,
+        "val_losses": val_losses,
+        "final_mae": all_mae[-1] if all_mae else None,
+        "final_rmse": all_rmse[-1] if all_rmse else None,
+        "final_mape": all_mape[-1] if all_mape else None,
+        "timestep_losses": timestep_losses,
+        "timestep_mae": timestep_mae if timestep_mae else None,
+    }
+
+
+def plot_loss_comparison(results: dict) -> None:
+    labels = list(results.keys())
+    rmse_values = [results[name]["final_rmse"] for name in labels]
+
+    fig, ax = plt.subplots(figsize=(7, 5))
+    bars = ax.bar(labels, rmse_values, color=["#1f77b4", "#ff7f0e"])
+    ax.set_title("Final Prediction Loss Comparison (Final RMSE)")
+    ax.set_ylabel("RMSE")
+    ax.set_ylim(0, max(rmse_values) * 1.15)
+
+    for bar, value in zip(bars, rmse_values):
+        ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.01, f"{value:.2f}",
+                ha="center", va="bottom", fontsize=10)
+
+    fig.tight_layout()
+
+
+def plot_timestep_prediction_loss(results: dict) -> None:
+    fig, ax = plt.subplots(figsize=(9, 5))
+    timesteps = list(range(1, 13))
+
+    for name, data in results.items():
+        # Prefer parsed per-timestep MAE if available (12 values), otherwise fall back
+        # to any timestep_losses parsed from individual "timestep" lines.
+        losses = data.get("timestep_mae") or data.get("timestep_losses", [])
+        if losses:
+            # Ensure we only plot up to 12 timesteps
+            losses = losses[:12]
+            ax.plot(timesteps[:len(losses)], losses, marker="o", label=name)
+
+    ax.set_title("Prediction Loss across Timesteps")
+    ax.set_xlabel("Timestep")
+    ax.set_ylabel("Loss")
+    ax.set_xticks(timesteps)
+    ax.grid(True, linestyle="--", alpha=0.5)
+    ax.legend()
+    fig.tight_layout()
+
+
+def plot_validation_loss(results: dict) -> None:
+    fig, ax = plt.subplots(figsize=(9, 5))
+    target_epochs = 76
+
+    for name, data in results.items():
+        losses = data["val_losses"]
+        if losses:
+            epochs = list(range(1, len(losses) + 1))
+            ax.plot(epochs, losses, marker="o", label=name)
+
+            # Draw a clear visual cutoff line if the model finished early
+            if len(losses) < target_epochs:
+                ax.axvline(x=len(losses), color="red", linestyle="--", alpha=0.6,
+                           label=f"{name} Stop (Epoch {len(losses)})")
+
+    ax.set_title("Validation Loss During Training")
+    ax.set_xlabel("Epoch")
+    ax.set_ylabel("Validation Loss")
+    ax.set_xlim(1, target_epochs)  # Enforce the graph length to 76 epochs
+    ax.grid(True, linestyle="--", alpha=0.5)
+    ax.legend()
+    fig.tight_layout()
+
+
+def plot_training_loss(results: dict) -> None:
+    fig, ax = plt.subplots(figsize=(9, 5))
+    target_epochs = 76
+
+    for name, data in results.items():
+        losses = data["train_losses"]
+        if losses:
+            epochs = list(range(1, len(losses) + 1))
+            ax.plot(epochs, losses, marker="o", label=name)
+
+            # Draw a clear visual cutoff line if the model finished early
+            if len(losses) < target_epochs:
+                ax.axvline(x=len(losses), color="red", linestyle="--", alpha=0.6,
+                           label=f"{name} Stop (Epoch {len(losses)})")
+
+    ax.set_title("Training Loss During Training")
+    ax.set_xlabel("Epoch")
+    ax.set_ylabel("Training Loss")
+    ax.set_xlim(1, target_epochs)  # Enforce the graph length to 76 epochs
+    ax.grid(True, linestyle="--", alpha=0.5)
+    ax.legend()
+    fig.tight_layout()
+
+
+def main() -> None:
+    root = Path(__file__).resolve().parent
+    logs = {
+        "New RNN": root / "NewModelRNN_Training.txt",
+        "Old TCN": root / "OldModelTCN_Training.txt",
+    }
+
+    results = {}
+    for name, log_path in logs.items():
+        if not log_path.exists():
+            raise FileNotFoundError(f"Training log not found: {log_path}")
+        results[name] = parse_training_log(log_path)
+
+    plot_loss_comparison(results)
+    plot_timestep_prediction_loss(results)
+    plot_validation_loss(results)
+    plot_training_loss(results)
+    plt.show()
+
+
+if __name__ == "__main__":
+    main()
