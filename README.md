@@ -69,8 +69,7 @@ astgcn-gru-traffic-benchmark/
 ├── AAAI-GuoS.2690.pdf       # Reference paper (Guo et al., 2019)
 └── README.md                # Project documentation
 
-
-
+```
 ---
 
 ## 🚀 Methodology Summary
